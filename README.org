@@ -1,0 +1,39 @@
+#+title: /App-Directory/
+
+* Qu'est-ce qu'App-Directory ?
+Un logiciel qui fait office de répertoire d'application, il affiche
+des listes d'application et leurs icônes et permet de les organiser.
+
+Ce logiciel est écrit en /C++/ avec les bibliothèques logicielles /Qt/
+distribué sous *licence GPL-3.0*.
+** But
+Permettre aux utilisateurs d'avoir rapidement et de manière
+centralisée accès aux applications qu'ils utilisent fréquement.
+
+Il a pour but de remplacer quasiment 1:1 les fonctionnalités et
+l'utilisation de l'application originale (sous MS-Access) et de
+compléter certaines utilités pour la facilité d'utilisation.
+** Philosophie
++ Peu de fonctionnalités
++ Simplicité technique (respecter les standards au maximum)
++ Utilisation de l'écosystème
++ Peu d'error handling (au même titre que le logiciel qu'il remplace)
+** Fonctionnalités
+*** DONE Les favoris côté utilisateur
+*** DONE Sauvegarde des paramètres utilisateurs
+**** DONE Thèmes
+**** DONE Taille de la police
+**** DONE Lancement au démarrage
+*** DONE Ordres multiples
+**** DONE Ordre ID
+**** DONE Ordre Favoris
+**** TODO Ordre Type
++ à valider au besoin
+*** TODO [#C] Rechercher par ID
++ à valider au besoin
+*** DONE Affichage de la liste des programmes
+Tel que:
++ [image] [nom] [favoris]
+*** DONE [#A] Police d'écriture avec choix de police custom
+*** DONE Variables custom pour sélectionner les sources de données à la compilation
+*** DONE Sauvegarde des favoris
