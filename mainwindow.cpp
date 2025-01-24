@@ -12,6 +12,7 @@
 #include <QDialog>
 #include <QCloseEvent>
 #include <QSaveFile>
+#include <QSettings>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -34,20 +35,38 @@ MainWindow::MainWindow(QWidget *parent)
     setupSortCriteria();
 
     if (!loadData()) {
-        QMessageBox::warning(this, tr("Erreur"),
-                             tr("Certaines données n'ont pas pu être chargées"
-                                ".\nMerci de contacter votre service informatique"));
+      QMessageBox::warning(this, tr("Erreur"),
+                             tr("Certaines données n'ont pas pu être chargées"));  
     } else {
         /*
          * if the data is loaded it means it has the default info for the favorites
          * so it should show the favorite tab (tab_2)
          */
-        ui->tabWidget->setCurrentIndex(1);
+
+        if (userJsonArray.size() > 0) {
+            ui->tabWidget->setCurrentIndex(1);
+        }
+        else {
+            ui->tabWidget->setCurrentIndex(0);
+        }
+
+        if (ui->comboBox) {
+            ui->comboBox->setCurrentText(getSortCriteriaString(userJsonArray.isEmpty() ? SortRole::Alphabetical : SortRole::Favorite));
+        }
     }
 
-    if (ui->comboBox) {
-        ui->comboBox->setCurrentText(getSortCriteriaString(SortRole::Favorite));
+    QSettings bootSettings("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+        QSettings::NativeFormat);
+
+    QSettings config("HKEY_CURRENT_USER\\Software\\AppDirectory", QSettings::NativeFormat);
+
+    // Check if it's the first run
+    if (!config.contains("AppDirectory") && !bootSettings.contains("AppDirectory")) {
+       QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+       bootSettings.setValue("AppDirectory", appPath);
     }
+
+    
     populateList();
 
     connect(ui->pushButton_3, &QPushButton::clicked,
@@ -73,33 +92,17 @@ QString MainWindow::getSortCriteriaString(SortRole role) const
 
 void MainWindow::setupSortCriteria()
 {
-    sortCriteria.clear();
-
     /*
      * We needed both enums to have a link between what is written and what is used,
      * we could hack it with some cpp+qt magic (I tried, it's really easy) but I prefer not to.
      */
 
-    // add the criterias and their role
-    sortCriteria.append({
-        getSortCriteriaString(SortRole::Alphabetical),
-        SortRole::Alphabetical
-    });
+    //sortCriteria.clear();
 
-    sortCriteria.append({
-        getSortCriteriaString(SortRole::ID),
-        SortRole::ID
-    });
-
-    sortCriteria.append({
-        getSortCriteriaString(SortRole::Favorite),
-        SortRole::Favorite
-    });
-
-    sortCriteria.append({
-        getSortCriteriaString(SortRole::Type),
-        SortRole::Type
-    });
+    sortCriteria = {
+        { getSortCriteriaString(SortRole::Alphabetical), SortRole::Alphabetical },
+        { getSortCriteriaString(SortRole::Favorite), SortRole::Favorite },
+    };
 
     // add them in the comboBox directly
     if (ui->comboBox) {
@@ -114,7 +117,7 @@ bool MainWindow::initDirs()
 {
     // create the folders if they don't exist already
     QDir userDir(Config::USER_DATA_PATH);
-    if (!userDir.exists() && userDir.mkpath(".")) {
+    if (!userDir.exists() && !userDir.mkpath(".")) {
         qWarning() << "Failed to create user data directory";
         return false;
     }
@@ -881,8 +884,6 @@ void MainWindow::addCustomEntry(const QJsonObject &entry)
     customJsonArray.append(modifiedEntry);
     userJsonArray.append(newEntryId);
 
-    saveCustomEntriesFile();
-    saveUserFile();
     updateJsonArrays();
     populateList();
     on_lineEdit_textChanged(ui->lineEdit->text());
@@ -978,7 +979,6 @@ void MainWindow::onFavoriteToggled(bool favorite)
         }
     }
 
-    saveUserFile();
     updateJsonArrays();
 
     // Update current filter if search is active
@@ -1068,7 +1068,7 @@ void MainWindow::on_actionApropos_triggered()
 {
     // show the app's infos and the support to call or contact
     QMessageBox::information(this,
-                             "Apropos",
+                             "A propos",
                              tr("Ce programme est écrit en C++ et utilise les bibliothèques QT GPLv3.\n"
                                 "Le programme est sous licence GPLv3 de manière à suivre la licence QT.\n"
                                 "Pour toute question relative au code merci de vous adresser à votre service informatique."));
@@ -1089,7 +1089,6 @@ void MainWindow::updateFavoriteOrder(const QModelIndex &sourceIndex, int row)
             userJsonArray.append(widget->property("id").toInt());
         }
     }
-    saveUserFile();
 }
 
 void MainWindow::on_actionQuitter_triggered()

@@ -121,7 +121,7 @@ void Settings::on_pushButton_3_clicked()
 void Settings::initializeStartupSetting()
 {
     QSettings guiSettings("TIC", "AppDirectory");
-    bool startupEnabled = guiSettings.value("startOnBoot", false).toBool();
+    bool startupEnabled = guiSettings.value("startOnBoot", true).toBool();
     ui->checkBox->setChecked(startupEnabled);
 }
 
@@ -133,9 +133,12 @@ void Settings::updateStartupSetting(bool enabled)
     QSettings bootSettings("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
                            QSettings::NativeFormat);
 
+    QSettings config("HKEY_CURRENT_USER\\Software\\AppDirectory", QSettings::NativeFormat);
+
     if (enabled) {
         QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
         bootSettings.setValue("AppDirectory", appPath);
+        config.setValue("AppDirectory", appPath);
     } else {
         bootSettings.remove("AppDirectory");
     }

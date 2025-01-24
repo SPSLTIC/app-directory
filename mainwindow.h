@@ -57,7 +57,7 @@ private:
         SortRole role;
     };
 
-    QVector<SortCriteriaItem> sortCriteria;
+    QVector<SortCriteriaItem> sortCriteria; 
     SortRole currentSortRole;
     Qt::SortOrder currentSortOrder;
     void setupSortCriteria();
