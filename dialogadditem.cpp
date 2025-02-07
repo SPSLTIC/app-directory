@@ -12,12 +12,47 @@ DialogAddItem::DialogAddItem(QWidget *parent)
     , ui(new Ui::DialogAddItem)
 {
     ui->setupUi(this);
+    ui->deleteButton->setVisible(false);
+
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, [this]() {
         if (verifyEntry()) {  // Only proceed if verification passes
             emit customEntryCreated(newEntry);
             accept();
         }
-    });
+        });
+}
+
+// Update the entry
+DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
+    : QDialog(parent)
+    , ui(new Ui::DialogAddItem)
+    , newEntry(entry)
+{
+    ui->setupUi(this);
+
+    ui->lineEdit->setText(entry.value("Name").toString());
+    ui->lineEdit_2->setText(entry.value("Path").toString());
+    ui->lineEdit_3->setText(entry.value("Image").toString());
+
+    ui->deleteButton->show();
+
+    connect(ui->deleteButton, &QPushButton::clicked, this, [this]() {
+        if (QMessageBox::question(this, tr("Supprimer l'entrée"),
+            tr("Êtes-vous sûr de vouloir supprimer cette entrée ?"),
+            QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes)
+        {
+            emit customEntryDeleted(newEntry["ID"].toInt());
+            reject();
+        }
+        });
+
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, [this]() {
+        if (verifyEntry()) {
+            qDebug() << "Signal customEntryUpdate émis avec:" << newEntry;
+            emit customEntryUpdate(newEntry);
+            accept();
+        }
+        });
 }
 
 DialogAddItem::~DialogAddItem()
@@ -33,20 +68,29 @@ void DialogAddItem::generateEntry()
 
 bool DialogAddItem::verifyEntry()
 {
-    if(!ui->lineEdit->text().isEmpty() && !ui->lineEdit_2->text().isEmpty() && !ui->lineEdit_3->text().isEmpty())
+    if (!ui->lineEdit->text().isEmpty() &&
+        !ui->lineEdit_2->text().isEmpty() &&
+        !ui->lineEdit_3->text().isEmpty())
     {
+        int id = newEntry.contains("ID") ? newEntry.value("ID").toInt() : generateUniqueId();
+
+        bool favorite = newEntry.contains("Favorite") ? newEntry.value("Favorite").toBool() : true;
+
         newEntry = QJsonObject({
-            {"ID", generateUniqueId()},
+            {"ID", id},
             {"Name", ui->lineEdit->text()},
             {"Path", ui->lineEdit_2->text()},
             {"Image", ui->lineEdit_3->text()},
-            {"Favorite", true}
-        });
+            {"Favorite", favorite},
+            {"Custom", true}
+            });
 
         return true;
-    } else {
-        QMessageBox::warning(this, tr("Error"),
-                             tr("Please fill in all fields"));
+    }
+    else
+    {
+        QMessageBox::warning(this, tr("Erreur"),
+            tr("Veuillez remplir tous les champs"));
         return false;
     }
 }

@@ -2,6 +2,8 @@
 #define RICHITEM_H
 
 #include <QWidget>
+#include <QToolButton>
+#include "mainwindow.h"
 
 namespace Ui {
 class richitem;
@@ -13,9 +15,11 @@ class richitem : public QWidget
 
 public:
     explicit richitem(
+        MainWindow* mainWindow,
         const QString &path,
         const QString &text,
         const QString &imagePath,
+        bool custom,
         bool favorite,
         bool showFavoriteButton = true,
         QWidget *parent = nullptr);
@@ -26,7 +30,7 @@ public:
     QString getLabelText() const;
     void setFavorite(bool favorite);
     void updateContent(const QString& path, const QString& text,
-                       const QString& imagePath, bool favorite);
+                       const QString& imagePath, bool custom, bool favorite);
 
 signals:
     void favoriteToggled(bool favorite);
@@ -38,10 +42,12 @@ private:
     QString m_currentImagePath;
     QString m_text;
     void updateFavoriteButton();
+    MainWindow* m_mainWindow;
 
 private slots:
     void toggleFavorite();
     void handleLink(const QString &link);
+    void on_toolButton_clicked();
 };
 
 #endif // RICHITEM_H

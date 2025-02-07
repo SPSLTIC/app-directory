@@ -13,6 +13,7 @@
 #include <QCloseEvent>
 #include <QSaveFile>
 #include <QSettings>
+#include <QToolButton>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -273,6 +274,7 @@ void MainWindow::onSortOrderChanged()
     populateList();
 }
 
+
 void MainWindow::populateList()
 {
     // store existing items
@@ -286,7 +288,7 @@ void MainWindow::populateList()
         }
     }
 
-    // clear lists before reordering
+    // clear lirts before reordering
     ui->listWidget->clear();
     ui->listWidget_2->clear();
     existingItems.clear();
@@ -320,10 +322,11 @@ void MainWindow::populateList()
         QString text = obj["Name"].toString();
         QString imagepath = obj["Image"].toString();
         bool favorite = obj["Favorite"].toBool();
+        bool custom = obj["Custom"].toBool();
 
         // create main list item
         QListWidgetItem *item = new QListWidgetItem(ui->listWidget);
-        richitem *richItemWidget = new richitem(path, text, imagepath, favorite);
+        richitem *richItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
         richItemWidget->setProperty("id", id);
         item->setSizeHint(richItemWidget->sizeHint());
         ui->listWidget->addItem(item);
@@ -331,7 +334,7 @@ void MainWindow::populateList()
 
         // create favorite list item
         QListWidgetItem *favItem = new QListWidgetItem(ui->listWidget_2);
-        richitem *favRichItemWidget = new richitem(path, text, imagepath, favorite);
+        richitem *favRichItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
         favRichItemWidget->setProperty("id", id);
         favItem->setSizeHint(favRichItemWidget->sizeHint());
         ui->listWidget_2->addItem(favItem);
@@ -365,14 +368,15 @@ void MainWindow::updateExistingItem(QListWidgetItem* item,
     QString text = obj["Name"].toString();
     QString imagepath = obj["Image"].toString();
     bool favorite = obj["Favorite"].toBool();
+    bool custom = obj["Custom"].toBool();;
 
     if (richitem* widget = qobject_cast<richitem*>(ui->listWidget->itemWidget(item))) {
-        widget->updateContent(path, text, imagepath, favorite);
+        widget->updateContent(path, text, imagepath, custom, favorite);
         item->setHidden(!favorite);
 
         if (richitem* favWidget = qobject_cast<richitem*>(
                 ui->listWidget_2->itemWidget(favItem))) {
-            favWidget->updateContent(path, text, imagepath, favorite);
+            favWidget->updateContent(path, text, imagepath, custom, favorite);
             favItem->setHidden(!favorite);
         }
     }
@@ -385,18 +389,19 @@ void MainWindow::createNewItem(const QJsonObject& obj)
     QString imagepath = obj["Image"].toString();
     bool favorite = obj["Favorite"].toBool();
     int id = obj["ID"].toInt();
+    bool custom = obj["Custom"].toBool();
 
     // create main list item
     QListWidgetItem *item = new QListWidgetItem(ui->listWidget);
-    richitem *richItemWidget = new richitem(path, text, imagepath, favorite);
+    richitem *richItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
     richItemWidget->setProperty("id", id);
     item->setSizeHint(richItemWidget->sizeHint());
     ui->listWidget->addItem(item);
     ui->listWidget->setItemWidget(item, richItemWidget);
-
+    
     // create favorite list item
     QListWidgetItem *favItem = new QListWidgetItem(ui->listWidget_2);
-    richitem *favRichItemWidget = new richitem(path, text, imagepath, favorite);
+    richitem *favRichItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
     favRichItemWidget->setProperty("id", id);
     favItem->setSizeHint(favRichItemWidget->sizeHint());
     ui->listWidget_2->addItem(favItem);
@@ -951,14 +956,6 @@ void MainWindow::onFavoriteToggled(bool favorite)
     // get the tab index to check if we're in favorites tab
     bool inFavoritesTab = (ui->tabWidget->currentIndex() == 1);
 
-    // mark if custom entry is unfavorite for deletion
-    if (isCustomEntry && inFavoritesTab) {
-        if (!favorite) {
-            customEntriesMarkedForDeletion.insert(id);
-        } else {
-            customEntriesMarkedForDeletion.remove(id);
-        }
-    }
 
     updateUserJsonArray(id, favorite);
 
@@ -1014,6 +1011,108 @@ void MainWindow::updateUserJsonArray(int id, bool favorite)
             }
         }
     }
+}
+
+void MainWindow::updateCustomEntry(const QJsonObject& updatedEntry)
+{
+    int id = updatedEntry["ID"].toInt();
+    QJsonObject oldEntry;
+    bool found = false;
+
+    // Find existing entry in customJsonArray
+    for (int i = 0; i < customJsonArray.size(); ++i) {
+        QJsonObject obj = customJsonArray[i].toObject();
+        if (obj["ID"].toInt() == id) {
+            oldEntry = obj;
+            found = true;
+            break;
+        }
+    }
+
+    QJsonObject modifiedEntry = updatedEntry;
+
+    // If the image has been modified (or the entry did not yet exist)
+    // then we copy the new image into the storage folder
+    if (!found || updatedEntry["Image"].toString() != oldEntry["Image"].toString()) {
+        QString originalImagePath = updatedEntry["Image"].toString();
+        QString newImagePath = copyImageToStorage(originalImagePath);
+        if (!newImagePath.isEmpty()) {
+            modifiedEntry["Image"] = newImagePath;
+
+            // Delete the old image only if it is in the custom_images folder
+            QString oldImagePath = oldEntry["Image"].toString();
+            if (!oldImagePath.isEmpty() && QFile::exists(oldImagePath)) {
+                // Check that the path starts with the image storage folder
+                QString customImagesPath = getCustomImagesPath();
+                if (oldImagePath.startsWith(customImagesPath)) {
+                    if (QFile::remove(oldImagePath)) {
+                        qDebug() << "Old image deleted:" << oldImagePath;
+                    }
+                    else {
+                        qWarning() << "Failed to delete old image:" << oldImagePath;
+                    }
+                }
+            }
+        }
+    }
+
+    modifiedEntry["Favorite"] = true;
+
+    // Update entry in customJsonArray or add if not exist
+    if (found) {
+        for (int i = 0; i < customJsonArray.size(); ++i) {
+            QJsonObject obj = customJsonArray[i].toObject();
+            if (obj["ID"].toInt() == id) {
+                customJsonArray[i] = modifiedEntry;
+                break;
+            }
+        }
+    }
+    else {
+        customJsonArray.append(modifiedEntry);
+        userJsonArray.append(id);
+    }
+
+    updateJsonArrays();
+    saveUserFile();
+    saveCustomEntriesFile();
+    populateList();
+    on_lineEdit_textChanged(ui->lineEdit->text());
+}
+
+void MainWindow::onCustomEntryDeleteRequested(int id)
+{
+    // Remove entry from customJsonArray
+    for (int i = customJsonArray.size() - 1; i >= 0; --i) {
+        QJsonObject obj = customJsonArray[i].toObject();
+        if (obj["ID"].toInt() == id) {
+            // Delete the associated image if it's in the custom_images folder
+            QString imagePath = obj["Image"].toString();
+            QString customImagesPath = getCustomImagesPath();
+            if (!imagePath.isEmpty() && QFile::exists(imagePath) && imagePath.startsWith(customImagesPath)) {
+                if (QFile::remove(imagePath)) {
+                    qDebug() << "Old image deleted:" << imagePath;
+                }
+                else {
+                    qWarning() << "Failed to delete old image:" << imagePath;
+                }
+            }
+            customJsonArray.removeAt(i);
+        }
+    }
+
+    // Remove the id from userJsonArray
+    for (int i = userJsonArray.size() - 1; i >= 0; --i) {
+        if (userJsonArray[i].toInt() == id) {
+            userJsonArray.removeAt(i);
+        }
+    }
+
+    updateJsonArrays();
+    populateList();
+    on_lineEdit_textChanged(ui->lineEdit->text());
+
+    qDebug() << "Entry" << id << "deleted.";
 }
 
 void MainWindow::processMarkedForDeletionEntries() {

@@ -24,12 +24,18 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+
+    QJsonArray customJsonArray;
+
+    void addCustomEntry(const QJsonObject& entry);
+    void updateCustomEntry(const QJsonObject& updatedEntry);
+    void onCustomEntryDeleteRequested(int id);
+
 private:
     Ui::MainWindow *ui;
 
     QJsonArray jsonArray;
     QJsonArray userJsonArray;
-    QJsonArray customJsonArray;
 
     bool loadData();
     bool initDirs();
@@ -67,10 +73,10 @@ private:
 
     QString getLatestBackupPath() const;
     void updateJsonArrays();
-    void addCustomEntry(const QJsonObject &entry);
     void saveUserFile();
     void saveCustomEntriesFile();
     QString copyImageToStorage(const QString &originalImagePath);
+
 
     // Save system methods
     bool verifyJsonArray(const QString &filePath) const;
@@ -109,5 +115,6 @@ private slots:
     void on_actionParam_tres_triggered();
     void onFavoriteToggled(bool favorite);
     void updateFavoriteOrder(const QModelIndex &sourceIndex, int row);
+
 };
 #endif // MAINWINDOW_H

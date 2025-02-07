@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include "config.h"
+#include "richitem.h"
 #include <QJsonObject>
 #include <QDir>
 
@@ -16,11 +17,14 @@ class DialogAddItem : public QDialog
 
 public:
     explicit DialogAddItem(QWidget *parent = nullptr);
+    explicit DialogAddItem(const QJsonObject& entry, QWidget* parent = nullptr);
     ~DialogAddItem();
     QJsonObject getNewEntry() const { return newEntry; }
 
 signals:
     void customEntryCreated(const QJsonObject &entry);
+    void customEntryUpdate(const QJsonObject &entry);
+    void customEntryDeleted(int id);
 
 private slots:
     void generateEntry();

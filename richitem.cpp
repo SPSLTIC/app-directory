@@ -1,27 +1,33 @@
 #include "richitem.h"
 #include "ui_richitem.h"
 #include "config.h"
+#include "dialogadditem.h"
 #include <QUrl>
 #include <QDir>
 #include <QProcess>
 #include <QDesktopServices>
+#include <QRegularExpression>
 
 
 richitem::richitem(
-    const QString &path,
-    const QString &text,
-    const QString &imagepath,
+    MainWindow* mainWindow,
+    const QString& path,
+    const QString& text,
+    const QString& imagepath,
+    bool custom,
     bool favorite,
     bool showFavoriteButton,
-    QWidget *parent) :
+    QWidget* parent) :
     QWidget(parent),
     ui(new Ui::richitem),
     m_favorite(favorite),
     m_showFavoriteButton(showFavoriteButton),
-    m_text(text)
+    m_text(text),
+    m_mainWindow(mainWindow)
 {
     ui->setupUi(this);
-    updateContent(path, text, imagepath, favorite);
+
+    updateContent(path, text, imagepath, custom, favorite);
 
     if (m_showFavoriteButton) {
         connect(ui->favButton, &QPushButton::clicked,
@@ -78,7 +84,7 @@ void richitem::setFavorite(bool favorite)
 }
 
 void richitem::updateContent(const QString& path, const QString& text,
-                             const QString& imagePath, bool favorite) {
+                             const QString& imagePath, bool custom, bool favorite) {
     m_text = text;
     m_favorite = favorite;
 
@@ -88,6 +94,11 @@ void richitem::updateContent(const QString& path, const QString& text,
     ui->label_2->setText(linkText);
     ui->label_2->setTextFormat(Qt::RichText);
     ui->label_2->setOpenExternalLinks(false);
+
+    ui->toolButton->setVisible(custom);
+    
+    ui->toolButton->setFixedHeight(30);
+    ui->toolButton->setFixedWidth(30);
 
     if (imagePath != m_currentImagePath) {
         QPixmap pixmap;
@@ -119,4 +130,49 @@ void richitem::handleLink(const QString &link) {
 
     // Try using ShellExecute via QProcess
     QProcess::startDetached("cmd.exe", {"/c", "start", "", actualPath});
+}
+
+void richitem::on_toolButton_clicked()
+{
+    QJsonArray customJsonArray = m_mainWindow->customJsonArray;
+    QJsonObject currentEntry;
+
+    // Extract the "Name" of the item from the label
+    QRegularExpression regex(R"(<a[^>]*href=['"]([^'"]+)['"][^>]*>(.*?)</a>)");
+    QRegularExpressionMatch match = regex.match(ui->label_2->text());
+    QString entryName = match.captured(2);
+
+    bool found = false;
+    
+    for (const QJsonValue& value : customJsonArray) {
+        if (value.isObject()) {
+            QJsonObject obj = value.toObject();
+            if (obj["Name"].toString() == entryName) {
+                currentEntry = obj;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        qDebug() << "No custom entries found for" << entryName;
+        return;
+    }
+
+    DialogAddItem* dialog = new DialogAddItem(currentEntry, this);
+    
+    connect(dialog, &DialogAddItem::customEntryUpdate, this, [this](const QJsonObject& updatedEntry) {
+        qDebug() << "Modified entry received:" << updatedEntry;
+        m_mainWindow->updateCustomEntry(updatedEntry);
+        }, Qt::QueuedConnection);
+
+    connect(dialog, &DialogAddItem::customEntryDeleted, this, [this](int id) {
+        qDebug() << "Delete request received for ID:" << id;
+        m_mainWindow->onCustomEntryDeleteRequested(id);
+        });
+
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setFixedSize(dialog->size());
+    dialog->show();
 }

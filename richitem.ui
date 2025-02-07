@@ -70,6 +70,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QToolButton" name="toolButton">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset theme="QIcon::ThemeIcon::MailMessageNew"/>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="favButton">
        <property name="minimumSize">
         <size>
