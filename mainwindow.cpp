@@ -3,6 +3,7 @@
 #include "richitem.h"
 #include "dialogadditem.h"
 #include "settings.h"
+#include "dialogaddfavorites.h"
 #include <QListWidget>
 #include <QPushButton>
 #include <QComboBox>
@@ -1157,6 +1158,15 @@ void MainWindow::on_actionParam_tres_triggered()
     settings->setAttribute(Qt::WA_DeleteOnClose);
     settings->setFixedSize(settings->size());
     settings->show();
+}
+
+void MainWindow::on_actionManageFav_triggered()
+{
+    DialogAddFavorites dlg(this, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QStringList newFavorites = dlg.selectedFavorites();
+        // Vous pouvez maintenant mettre à jour vos favoris dans l'application
+    }
 }
 
 void MainWindow::on_pushButton_clicked()
