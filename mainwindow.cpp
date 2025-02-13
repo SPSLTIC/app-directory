@@ -21,6 +21,10 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    QSettings settings("AppDirectory", "MainWindow");
+    restoreGeometry(settings.value("MainWindowGeometry").toByteArray());
+    restoreState(settings.value("MainWindowState").toByteArray());
     /*
      * the cornerWidget is set by taking an existing widget (the comboBox + the pushButton_3)
      * it needs to be a single widget because it can't add two, it also can't be in tabWidget first
@@ -1202,6 +1206,10 @@ void MainWindow::on_actionQuitter_triggered()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    QSettings settings("AppDirectory", "MainWindow");
+    settings.setValue("MainWindowGeometry", saveGeometry());
+    settings.setValue("MainWindowState", saveState());
+
     processMarkedForDeletionEntries();
     saveUserFile();
     saveCustomEntriesFile();
