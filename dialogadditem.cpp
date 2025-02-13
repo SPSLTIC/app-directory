@@ -102,6 +102,14 @@ void DialogAddItem::prepareInterface() {
     ui->comboBox_type->addItem("Site internet");
     ui->comboBox_type->addItem("Autre");
     ui->lineEdit->setPlaceholderText("Par ex: Google");
+
+    // Connect signals for each input field
+    connect(ui->lineEdit, &QLineEdit::textChanged, this, &DialogAddItem::checkFields);
+    connect(ui->lineEdit_2, &QLineEdit::textChanged, this, &DialogAddItem::checkFields);
+    connect(ui->lineEdit_3, &QLineEdit::textChanged, this, &DialogAddItem::checkFields);
+
+    // Call it initially to set the proper state
+    checkFields();
 }
 
 DialogAddItem::~DialogAddItem()
@@ -251,4 +259,18 @@ int DialogAddItem::generateUniqueId()
     } while (idExists);
 
     return newId;
+}
+
+void DialogAddItem::checkFields()
+{
+    // Check if all required fields are not empty (you can adjust conditions as needed)
+    bool allFilled = !ui->lineEdit->text().trimmed().isEmpty() &&
+        !ui->lineEdit_2->text().trimmed().isEmpty() &&
+        !ui->lineEdit_3->text().trimmed().isEmpty();
+
+    // Enable or disable the OK/Add button accordingly
+    QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok);
+    if (okButton) {
+        okButton->setEnabled(allFilled);
+    }
 }
