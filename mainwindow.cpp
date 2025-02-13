@@ -14,6 +14,7 @@
 #include <QSaveFile>
 #include <QSettings>
 #include <QToolButton>
+#include <QSizeGrip>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,6 +36,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupSortCriteria();
 
+    setWindowFlags(Qt::MSWindowsFixedSizeDialogHint);
+    
+    setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
+   
     if (!loadData()) {
       QMessageBox::warning(this, tr("Erreur"),
                              tr("Certaines données n'ont pas pu être chargées"));  

@@ -14,12 +14,24 @@ DialogAddItem::DialogAddItem(QWidget *parent)
     ui->setupUi(this);
     ui->deleteButton->setVisible(false);
 
+    prepareInterface();
+
+    QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok);
+    if (okButton) {
+        okButton->setText(tr("Ajouter"));
+    }
+
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, [this]() {
         if (verifyEntry()) {  // Only proceed if verification passes
             emit customEntryCreated(newEntry);
             accept();
         }
         });
+
+    connect(ui->comboBox_type, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        this, &DialogAddItem::onTypeChanged);
+
+    onTypeChanged(ui->comboBox_type->currentIndex());
 }
 
 // Update the entry
@@ -30,17 +42,39 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
 {
     ui->setupUi(this);
 
+    this->setWindowTitle("Modifier le raccourcis");
+
+    prepareInterface();
+
+    QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok);
+    if (okButton) {
+        okButton->setText(tr("Sauvegarder"));
+    }
+
+    ui->deleteButton->setStyleSheet("background-color: #C91100; color: white;");
+
+    onTypeChanged(entry.value("Type").toInt());
+
     ui->lineEdit->setText(entry.value("Name").toString());
     ui->lineEdit_2->setText(entry.value("Path").toString());
     ui->lineEdit_3->setText(entry.value("Image").toString());
 
     ui->deleteButton->show();
 
+    ui->comboBox_type->setCurrentIndex(entry.value("Type").toInt());
+  
+
     connect(ui->deleteButton, &QPushButton::clicked, this, [this]() {
-        if (QMessageBox::question(this, tr("Supprimer l'entrée"),
-            tr("Êtes-vous sûr de vouloir supprimer cette entrée ?"),
-            QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes)
-        {
+        QMessageBox msgBox;
+        msgBox.setIcon(QMessageBox::Question);
+        msgBox.setWindowTitle(tr("Supprimer le raccourcis"));
+        msgBox.setText(tr("Êtes-vous sûr de vouloir supprimer ce raccourcis ?"));
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setButtonText(QMessageBox::Yes, tr("Oui"));
+        msgBox.setButtonText(QMessageBox::No, tr("Non"));
+
+        int ret = msgBox.exec();
+        if (ret == QMessageBox::Yes) {
             emit customEntryDeleted(newEntry["ID"].toInt());
             reject();
         }
@@ -53,6 +87,21 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
             accept();
         }
         });
+
+    connect(ui->comboBox_type, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        this, &DialogAddItem::onTypeChanged);
+}
+
+void DialogAddItem::prepareInterface() {
+
+    QPushButton* cancelButton = ui->buttonBox->button(QDialogButtonBox::Cancel);
+    if (cancelButton) {
+        cancelButton->setText(tr("Annuler"));
+    }
+
+    ui->comboBox_type->addItem("Site internet");
+    ui->comboBox_type->addItem("Autre");
+    ui->lineEdit->setPlaceholderText("Par ex: Google");
 }
 
 DialogAddItem::~DialogAddItem()
@@ -82,7 +131,8 @@ bool DialogAddItem::verifyEntry()
             {"Path", ui->lineEdit_2->text()},
             {"Image", ui->lineEdit_3->text()},
             {"Favorite", favorite},
-            {"Custom", true}
+            {"Custom", true},
+            {"Type", ui->comboBox_type->currentIndex()}
             });
 
         return true;
@@ -137,6 +187,30 @@ void DialogAddItem::on_pushButton_3_pressed()
         }
     }
 }
+
+void DialogAddItem::onTypeChanged(int index)
+{
+    switch (index)
+    {
+    case 0: // web
+        ui->pushButton_2->setVisible(false);
+        ui->lineEdit_2->setEnabled(true);
+        ui->lineEdit_2->setPlaceholderText("https://google.ch");
+        ui->lineEdit_2->setText("");
+        break;
+    case 1: // other
+        ui->pushButton_2->setVisible(true);
+        ui->lineEdit_2->setEnabled(false);
+        ui->lineEdit_2->setPlaceholderText("");
+        ui->lineEdit_2->setText("");
+        break;
+    default:
+        ui->pushButton_2->setVisible(false);
+        ui->lineEdit_2->setEnabled(false);
+        break;
+    }
+}
+
 
 int DialogAddItem::generateUniqueId()
 {

@@ -30,6 +30,7 @@ private slots:
     void generateEntry();
     void on_pushButton_2_pressed();
     void on_pushButton_3_pressed();
+    void onTypeChanged(int index);
 
 private:
     Ui::DialogAddItem *ui;
@@ -39,6 +40,7 @@ private:
     QString getCustomEntriesPath() const {
         return QDir(Config::CUSTOM_DATA_PATH).filePath(Config::CUSTOM_FILENAME);
     }
+    void prepareInterface();
 };
 
 #endif // DIALOGADDITEM_H
