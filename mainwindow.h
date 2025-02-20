@@ -27,6 +27,10 @@ public:
 
     QJsonArray customJsonArray;
 
+    QJsonArray jsonArray;
+
+    QJsonArray userJsonArray;
+
     void addCustomEntry(const QJsonObject& entry);
     void updateCustomEntry(const QJsonObject& updatedEntry);
     void onCustomEntryDeleteRequested(int id);
@@ -34,8 +38,6 @@ public:
 private:
     Ui::MainWindow *ui;
 
-    QJsonArray jsonArray;
-    QJsonArray userJsonArray;
 
     bool loadData();
     bool initDirs();
@@ -113,6 +115,7 @@ private slots:
     void resetListVisibility();
     void on_pushButton_clicked();
     void on_actionParam_tres_triggered();
+    void on_actionManageFav_triggered();
     void onFavoriteToggled(bool favorite);
     void updateFavoriteOrder(const QModelIndex &sourceIndex, int row);
 

@@ -31,6 +31,7 @@ private slots:
     void on_pushButton_2_pressed();
     void on_pushButton_3_pressed();
     void onTypeChanged(int index);
+    void checkFields();
 
 private:
     Ui::DialogAddItem *ui;

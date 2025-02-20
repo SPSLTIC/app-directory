@@ -3,6 +3,7 @@
 #include "richitem.h"
 #include "dialogadditem.h"
 #include "settings.h"
+#include "dialogaddfavorites.h"
 #include <QListWidget>
 #include <QPushButton>
 #include <QComboBox>
@@ -35,6 +36,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->listWidget_2->setAcceptDrops(true);
     ui->listWidget_2->setDropIndicatorShown(true);
     ui->listWidget_2->setDragDropMode(QAbstractItemView::InternalMove);
+
+    ui->listWidget->setCursor(Qt::PointingHandCursor);
+    ui->listWidget_2->setCursor(Qt::PointingHandCursor);
     connect(ui->listWidget_2->model(), &QAbstractItemModel::rowsMoved,
             this, &MainWindow::updateFavoriteOrder);
 
@@ -335,17 +339,18 @@ void MainWindow::populateList()
 
         // create main list item
         QListWidgetItem *item = new QListWidgetItem(ui->listWidget);
-        richitem *richItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
+        richitem *richItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
         richItemWidget->setProperty("id", id);
-        item->setSizeHint(richItemWidget->sizeHint());
+
+        item->setSizeHint(richItemWidget->size());
         ui->listWidget->addItem(item);
         ui->listWidget->setItemWidget(item, richItemWidget);
 
         // create favorite list item
         QListWidgetItem *favItem = new QListWidgetItem(ui->listWidget_2);
-        richitem *favRichItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
+        richitem *favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
         favRichItemWidget->setProperty("id", id);
-        favItem->setSizeHint(favRichItemWidget->sizeHint());
+        favItem->setSizeHint(favRichItemWidget->size());
         ui->listWidget_2->addItem(favItem);
         ui->listWidget_2->setItemWidget(favItem, favRichItemWidget);
         favItem->setHidden(!favorite);
@@ -402,7 +407,7 @@ void MainWindow::createNewItem(const QJsonObject& obj)
 
     // create main list item
     QListWidgetItem *item = new QListWidgetItem(ui->listWidget);
-    richitem *richItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
+    richitem *richItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
     richItemWidget->setProperty("id", id);
     item->setSizeHint(richItemWidget->sizeHint());
     ui->listWidget->addItem(item);
@@ -410,7 +415,7 @@ void MainWindow::createNewItem(const QJsonObject& obj)
     
     // create favorite list item
     QListWidgetItem *favItem = new QListWidgetItem(ui->listWidget_2);
-    richitem *favRichItemWidget = new richitem(this, path, text, imagepath, custom, favorite);
+    richitem *favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
     favRichItemWidget->setProperty("id", id);
     favItem->setSizeHint(favRichItemWidget->sizeHint());
     ui->listWidget_2->addItem(favItem);
@@ -1159,6 +1164,32 @@ void MainWindow::on_actionParam_tres_triggered()
     settings->show();
 }
 
+void MainWindow::on_actionManageFav_triggered()
+{
+    DialogAddFavorites dlg(this, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        QJsonArray newFavorites = dlg.getSelectedFavorites();
+
+        // Update with new favs
+        QSet<int> newFavSet;
+        for (const QJsonValue& value : newFavorites) {
+            int appId = value.toInt();
+            newFavSet.insert(appId);
+            updateUserJsonArray(appId, true);
+        }
+
+        for (int i = userJsonArray.size() - 1; i >= 0; --i) {
+            int id = userJsonArray[i].toInt();
+            if (!newFavSet.contains(id)) {
+                updateUserJsonArray(id, false);
+            }
+        }
+
+        updateJsonArrays();
+        populateList();
+    }
+}
+
 void MainWindow::on_pushButton_clicked()
 {
     // dialog for custom items
@@ -1169,7 +1200,7 @@ void MainWindow::on_pushButton_clicked()
     }, Qt::QueuedConnection);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setFixedSize(dialog->size());
-    dialog->show();
+    dialog->exec();
 }
 
 void MainWindow::on_actionApropos_triggered()
