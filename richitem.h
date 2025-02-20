@@ -16,6 +16,7 @@ class richitem : public QWidget
 public:
     explicit richitem(
         MainWindow* mainWindow,
+        const int id,
         const QString &path,
         const QString &text,
         const QString &imagePath,
@@ -43,11 +44,16 @@ private:
     QString m_text;
     void updateFavoriteButton();
     MainWindow* m_mainWindow;
+    QString path;
+    int id;
+    void handleLink(const QString& link);
 
 private slots:
     void toggleFavorite();
-    void handleLink(const QString &link);
     void on_toolButton_clicked();
+
+protected:
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
 };
 
 #endif // RICHITEM_H

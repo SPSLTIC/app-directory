@@ -29,14 +29,14 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>65</width>
-         <height>65</height>
+         <width>35</width>
+         <height>35</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>95</width>
-         <height>95</height>
+         <width>65</width>
+         <height>65</height>
         </size>
        </property>
        <property name="text">
@@ -83,14 +83,14 @@
       <widget class="QPushButton" name="favButton">
        <property name="minimumSize">
         <size>
-         <width>45</width>
-         <height>45</height>
+         <width>35</width>
+         <height>35</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
-         <width>45</width>
-         <height>45</height>
+         <width>35</width>
+         <height>35</height>
         </size>
        </property>
        <property name="text">

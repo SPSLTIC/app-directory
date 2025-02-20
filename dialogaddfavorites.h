@@ -17,14 +17,17 @@ public:
     explicit DialogAddFavorites(MainWindow* mainWindow, QWidget* parent = nullptr);
     ~DialogAddFavorites();
 
-    // Accès aux listes favorites sélectionnées
-    QStringList selectedFavorites() const;
+    QJsonArray getSelectedFavorites() const;
 
 private slots:
     void on_addButton_clicked();
     void on_removeButton_clicked();
     void onFavoritesRowsInserted(const QModelIndex& parent, int first, int last);
     void onAvailableRowsInserted(const QModelIndex& parent, int first, int last);
+    void on_availableSearch_textChanged(const QString& arg1);
+    void on_favoritesSearch_textChanged(const QString& arg1);
+    void onAvailableListItemPressed(QListWidgetItem* item);
+    void onFavoritesListItemPressed(QListWidgetItem* item);
 
 private:
     Ui::DialogAddFavorites* ui;

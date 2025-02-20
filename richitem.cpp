@@ -7,10 +7,12 @@
 #include <QProcess>
 #include <QDesktopServices>
 #include <QRegularExpression>
+#include <QSettings>
 
 
 richitem::richitem(
     MainWindow* mainWindow,
+    const int id,
     const QString& path,
     const QString& text,
     const QString& imagepath,
@@ -19,6 +21,8 @@ richitem::richitem(
     bool showFavoriteButton,
     QWidget* parent) :
     QWidget(parent),
+    id(id),
+    path(path),
     ui(new Ui::richitem),
     m_favorite(favorite),
     m_showFavoriteButton(showFavoriteButton),
@@ -26,6 +30,8 @@ richitem::richitem(
     m_mainWindow(mainWindow)
 {
     ui->setupUi(this);
+
+    setFixedHeight(50);
 
     updateContent(path, text, imagepath, custom, favorite);
 
@@ -84,14 +90,11 @@ void richitem::setFavorite(bool favorite)
 }
 
 void richitem::updateContent(const QString& path, const QString& text,
-                             const QString& imagePath, bool custom, bool favorite) {
+    const QString& imagePath, bool custom, bool favorite) {
     m_text = text;
     m_favorite = favorite;
 
-    QString linkText = QString("<a style='color: %1; text-decoration:none;' href='file:///%2'>%3</a>")
-                           .arg("gray", path, text);
-
-    ui->label_2->setText(linkText);
+    ui->label_2->setText(text);
     ui->label_2->setTextFormat(Qt::RichText);
     ui->label_2->setOpenExternalLinks(false);
 
@@ -110,26 +113,28 @@ void richitem::updateContent(const QString& path, const QString& text,
         }
 
         if (!pixmap.isNull()) {
-            pixmap = pixmap.scaled(65, 65, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            pixmap = pixmap.scaled(35, 35, Qt::KeepAspectRatio, Qt::SmoothTransformation);
             ui->label->setPixmap(pixmap);
         }
         m_currentImagePath = imagePath;
     }
-    // Connect the link clicked signal
-    connect(ui->label_2, &QLabel::linkActivated,
-            this, &richitem::handleLink);
+
     updateFavoriteButton();
 }
 
-void richitem::handleLink(const QString &link) {
-    // Remove 'file:///' if present
-    QString actualPath = link;
-    if (actualPath.startsWith("file:///")) {
-        actualPath = actualPath.mid(8);
-    }
+void richitem::handleLink(const QString& link)
+{
+    qDebug() << "handleLink called with link:" << link;
+    // Ouvrir le chemin via QProcess (ou QDesktopServices si souhaité)
+    QProcess::startDetached("cmd.exe", { "/c", "start", "", link });
+}
 
-    // Try using ShellExecute via QProcess
-    QProcess::startDetached("cmd.exe", {"/c", "start", "", actualPath});
+void richitem::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton) {
+        handleLink(path);
+    }
+    QWidget::mouseDoubleClickEvent(event);
 }
 
 void richitem::on_toolButton_clicked()
@@ -137,17 +142,12 @@ void richitem::on_toolButton_clicked()
     QJsonArray customJsonArray = m_mainWindow->customJsonArray;
     QJsonObject currentEntry;
 
-    // Extract the "Name" of the item from the label
-    QRegularExpression regex(R"(<a[^>]*href=['"]([^'"]+)['"][^>]*>(.*?)</a>)");
-    QRegularExpressionMatch match = regex.match(ui->label_2->text());
-    QString entryName = match.captured(2);
-
     bool found = false;
     
     for (const QJsonValue& value : customJsonArray) {
         if (value.isObject()) {
             QJsonObject obj = value.toObject();
-            if (obj["Name"].toString() == entryName) {
+            if (obj["ID"].toInt() == id) {
                 currentEntry = obj;
                 found = true;
                 break;
@@ -156,7 +156,7 @@ void richitem::on_toolButton_clicked()
     }
 
     if (!found) {
-        qDebug() << "No custom entries found for" << entryName;
+        qDebug() << "No custom entries found for" << id;
         return;
     }
 
@@ -174,5 +174,5 @@ void richitem::on_toolButton_clicked()
 
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setFixedSize(dialog->size());
-    dialog->show();
+    dialog->exec();
 }
