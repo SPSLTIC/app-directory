@@ -104,6 +104,8 @@ private:
     QSet<int> customEntriesMarkedForDeletion;
     void processMarkedForDeletionEntries();
 
+    void onTabChanged(int index);
+
 private slots:
     void on_actionQuitter_triggered();
     void closeEvent(QCloseEvent *event) override;
@@ -116,6 +118,7 @@ private slots:
     void on_pushButton_clicked();
     void on_actionParam_tres_triggered();
     void on_actionManageFav_triggered();
+    void on_actionAjouter_triggered();
     void onFavoriteToggled(bool favorite);
     void updateFavoriteOrder(const QModelIndex &sourceIndex, int row);
 

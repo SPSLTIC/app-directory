@@ -32,8 +32,9 @@ private slots:
 private:
     Ui::DialogAddFavorites* ui;
     void populateAvailableList(const QJsonArray& jsonArray); 
-    void populateFavoriteList(const QJsonArray& userJsonArray);
+    void populateFavoriteList(const QJsonArray& jsonArray);
     bool isFavorite(const QJsonArray& userJsonArray, int idItem);
+    void sortFavoritesByUserJsonArray(const QJsonArray& userJsonArray);
     MainWindow* m_mainWindow;
 
 };

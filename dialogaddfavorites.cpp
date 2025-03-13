@@ -7,6 +7,7 @@
 #include <QStringList>
 #include <QTimer>
 #include <QJsonObject>
+#include <QDate>
 
 DialogAddFavorites::DialogAddFavorites(MainWindow* mainWindow, QWidget* parent) :
     QDialog(parent),
@@ -17,8 +18,10 @@ DialogAddFavorites::DialogAddFavorites(MainWindow* mainWindow, QWidget* parent) 
 
     populateAvailableList(m_mainWindow->jsonArray);
     populateAvailableList(m_mainWindow->customJsonArray);
+    populateFavoriteList(m_mainWindow->jsonArray);
+    populateFavoriteList(m_mainWindow->customJsonArray);
+    sortFavoritesByUserJsonArray(m_mainWindow->userJsonArray);
 
-    ui->favoritesList->sortItems();
 
     ui->availableList->setDragEnabled(true);
     ui->availableList->setAcceptDrops(true);
@@ -31,7 +34,7 @@ DialogAddFavorites::DialogAddFavorites(MainWindow* mainWindow, QWidget* parent) 
     ui->favoritesList->setAcceptDrops(true);
     ui->favoritesList->setDropIndicatorShown(true);
     ui->favoritesList->setDragDropMode(QAbstractItemView::DragDrop);
-    ui->favoritesList->setDefaultDropAction(Qt::CopyAction);
+    ui->favoritesList->setDefaultDropAction(Qt::MoveAction);
     ui->favoritesList->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
     ui->availableList->setCursor(Qt::PointingHandCursor);
@@ -49,19 +52,6 @@ DialogAddFavorites::DialogAddFavorites(MainWindow* mainWindow, QWidget* parent) 
     if (okButton) {
         okButton->setText(tr("Confirmer"));
     }
-
-    /*QPixmap pixmap;
-    
-    pixmap = QPixmap(":/icons/icons/dragdrop.png");
-    
-    if (!pixmap.isNull()) {
-        qDebug() << "isNotNull";
-        pixmap = pixmap.scaled(75, 75, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        ui->label_5->setPixmap(pixmap);
-    }
-    else {
-        qDebug() << "isNull";
-    }*/
 
     connect(ui->favoritesList->model(), &QAbstractItemModel::rowsInserted,
         this, &DialogAddFavorites::onFavoritesRowsInserted);
@@ -87,26 +77,38 @@ void DialogAddFavorites::populateAvailableList(const QJsonArray& jsonArray)
         QString appName = obj.value("Name").toString();
         int appId = obj.value("ID").toInt();
         QString imagePath = obj.value("Image").toString(); 
+        bool custom = obj.value("Custom").toBool();
+        QString dateStr = obj.value("Date").toString();
+
+        if (!QFile::exists(imagePath)) {
+            qDebug() << "L'image n'existe pas:" << imagePath;
+
+            imagePath = ":/icons/icons/no_image.png";
+        }
 
         QIcon icon(imagePath);
 
         QListWidgetItem* item = new QListWidgetItem(icon, appName);
+
+        if (!custom) {
+            QDate today = QDate::currentDate();
+
+            QDate date = QDate::fromString(dateStr, "dd.MM.yyyy");
+
+            qDebug() << "DateStr:" << dateStr << "Date:" << date << "Aujourd'hui:" << today;
+
+            if (date > today) {
+                continue;
+            }
+        }
 
         // Store the unique identifier in the Qt::UserRole role
         item->setData(Qt::UserRole, appId);
    
         if (isFavorite(m_mainWindow->userJsonArray, appId)) {
 
-            QListWidgetItem* itemFav = new QListWidgetItem(icon, appName);
-
-            itemFav->setData(Qt::UserRole, appId);
-
             ui->availableList->addItem(item);
             item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
-
-
-            ui->favoritesList->addItem(itemFav);
-            ui->favoritesList->setIconSize(QSize(32, 32));
         }
         else {
             ui->availableList->addItem(item);
@@ -129,31 +131,60 @@ bool DialogAddFavorites::isFavorite(const QJsonArray& userJsonArray, int idItem)
     return false;
 }
 
-void DialogAddFavorites::populateFavoriteList(const QJsonArray& userJsonArray)
+void DialogAddFavorites::populateFavoriteList(const QJsonArray& jsonArray)
 {
-    ui->favoritesList->clear();  
-
-    for (const QJsonValue& value : userJsonArray) {
-        if (!value.isObject())
-            continue;
-
+    for (const QJsonValue& value : jsonArray) {
         QJsonObject obj = value.toObject();
         QString appName = obj.value("Name").toString();
         int appId = obj.value("ID").toInt();
         QString imagePath = obj.value("Image").toString();
 
-        QIcon icon(imagePath);
+        if (!value.isObject() || !isFavorite(m_mainWindow->userJsonArray, appId))
+            continue;
 
-        QListWidgetItem* item = new QListWidgetItem(icon, appName);
+            if (!QFile::exists(imagePath)) {
+                qDebug() << "L'image n'existe pas:" << imagePath;
 
-        // Store the unique identifier in the Qt::UserRole role
-        item->setData(Qt::UserRole, appId);
+                imagePath = ":/icons/icons/no_image.png";
+            }
 
+            QIcon icon(imagePath);
 
+            QListWidgetItem* itemFav = new QListWidgetItem(icon, appName);
+            itemFav->setData(Qt::UserRole, appId);
+            ui->favoritesList->addItem(itemFav);
+    }
+
+    ui->favoritesList->setIconSize(QSize(32, 32));
+}
+
+void DialogAddFavorites::sortFavoritesByUserJsonArray(const QJsonArray& userJsonArray)
+{
+    // Build a mapping from each ID in userJsonArray to its index (order)
+    QHash<int, int> orderMap;
+    for (int i = 0; i < userJsonArray.size(); ++i) {
+        int id = userJsonArray[i].toInt();
+        orderMap.insert(id, i);
+    }
+
+    // Extract all items from favoritesList into a list
+    QList<QListWidgetItem*> items;
+    while (ui->favoritesList->count() > 0) {
+        items.append(ui->favoritesList->takeItem(0));
+    }
+
+    // Sort items by comparing the order of their IDs from orderMap.
+    // Si un item n'existe pas dans userJsonArray, on lui assigne une grande valeur (INT_MAX) pour le placer à la fin.
+    std::sort(items.begin(), items.end(), [&orderMap](QListWidgetItem* a, QListWidgetItem* b) {
+        int idA = a->data(Qt::UserRole).toInt();
+        int idB = b->data(Qt::UserRole).toInt();
+        return orderMap.value(idA, INT_MAX) < orderMap.value(idB, INT_MAX);
+        });
+
+    // Réinsérer les items triés dans favoritesList
+    for (QListWidgetItem* item : items) {
         ui->favoritesList->addItem(item);
     }
-    ui->favoritesList->setIconSize(QSize(32, 32));
-    ui->favoritesList->sortItems();
 }
 
 
@@ -303,6 +334,7 @@ void DialogAddFavorites::onAvailableRowsInserted(const QModelIndex& parent, int 
                         QListWidgetItem* dup = ui->availableList->takeItem(idx);
                         delete dup;
                         qDebug() << "Duplication removed in availableList for ID:" << id;
+                        ui->removeButton->setEnabled(false);
                     }
                 }
                 

@@ -20,6 +20,7 @@ public:
     explicit DialogAddItem(const QJsonObject& entry, QWidget* parent = nullptr);
     ~DialogAddItem();
     QJsonObject getNewEntry() const { return newEntry; }
+    int generateUniqueId(const QJsonArray& jsonArray);
 
 signals:
     void customEntryCreated(const QJsonObject &entry);
@@ -33,15 +34,16 @@ private slots:
     void onTypeChanged(int index);
     void checkFields();
 
+
 private:
     Ui::DialogAddItem *ui;
     bool verifyEntry();
     QJsonObject newEntry;
-    int generateUniqueId();
     QString getCustomEntriesPath() const {
         return QDir(Config::CUSTOM_DATA_PATH).filePath(Config::CUSTOM_FILENAME);
     }
     void prepareInterface();
+    void previewIcon(int id);
 };
 
 #endif // DIALOGADDITEM_H

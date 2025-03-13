@@ -186,10 +186,18 @@
     <property name="title">
      <string>Favoris</string>
     </property>
+    <addaction name="actionAjouter"/>
     <addaction name="actionManageFav"/>
+   </widget>
+   <widget class="QMenu" name="menuAide">
+    <property name="title">
+     <string>Aide</string>
+    </property>
+    <addaction name="actionManuel_utilisateur"/>
    </widget>
    <addaction name="menuFichier"/>
    <addaction name="menuFavoris"/>
+   <addaction name="menuAide"/>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="sizeGripEnabled">
@@ -223,6 +231,16 @@
   <action name="actionManageFav">
    <property name="text">
     <string>Gérer</string>
+   </property>
+  </action>
+  <action name="actionAjouter">
+   <property name="text">
+    <string>Ajouter</string>
+   </property>
+  </action>
+  <action name="actionManuel_utilisateur">
+   <property name="text">
+    <string>Manuel utilisateur</string>
    </property>
   </action>
  </widget>

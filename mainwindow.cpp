@@ -16,6 +16,7 @@
 #include <QSettings>
 #include <QToolButton>
 #include <QSizeGrip>
+#include <QDate>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -47,6 +48,8 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowFlags(Qt::MSWindowsFixedSizeDialogHint);
     
     setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
+
+    ui->comboBox->hide();
    
     if (!loadData()) {
       QMessageBox::warning(this, tr("Erreur"),
@@ -59,9 +62,11 @@ MainWindow::MainWindow(QWidget *parent)
 
         if (userJsonArray.size() > 0) {
             ui->tabWidget->setCurrentIndex(1);
+            onTabChanged(1);
         }
         else {
             ui->tabWidget->setCurrentIndex(0);
+            onTabChanged(0);
         }
 
         if (ui->comboBox) {
@@ -85,6 +90,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->pushButton_3, &QPushButton::clicked,
             this, &MainWindow::onSortOrderChanged);
+
+    connect(ui->tabWidget, &QTabWidget::currentChanged,
+        this, &MainWindow::onTabChanged);
+}
+
+void MainWindow::onTabChanged(int index)
+{
+    ui->pushButton_3->setVisible(index ? false : true);
 }
 
 QString MainWindow::getSortCriteriaString(SortRole role) const
@@ -324,10 +337,7 @@ void MainWindow::populateList()
                   return compareItems(a, b);
               });
 
-    if (currentSortOrder == Qt::DescendingOrder) {
-        std::reverse(sortedList.begin(), sortedList.end());
-    }
-
+    QList<QPair<int, QString>> specialItems;
     // populate lists with sorted items
     for (const QJsonObject &obj : sortedList) {
         int id = obj["ID"].toInt();
@@ -336,25 +346,54 @@ void MainWindow::populateList()
         QString imagepath = obj["Image"].toString();
         bool favorite = obj["Favorite"].toBool();
         bool custom = obj["Custom"].toBool();
+        QString dateStr = obj["Date"].toString();
+
+        if (!QFile::exists(imagepath)) {
+            qDebug() << "L'image n'existe pas:" << imagepath;
+
+            imagepath = ":/icons/icons/no_image.png";
+        }
+
+        QIcon icon(imagepath);
 
         // create main list item
-        QListWidgetItem *item = new QListWidgetItem(ui->listWidget);
+        QListWidgetItem *item = new QListWidgetItem(icon, text);
         richitem *richItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
+
+        QListWidgetItem* favItem = new QListWidgetItem(icon, text);
+        richitem* favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
+
         richItemWidget->setProperty("id", id);
 
+        if (!custom) {
+            QDate today = QDate::currentDate();
+
+            QDate date = QDate::fromString(dateStr, "dd.MM.yyyy");
+
+            if (date > today) {
+                continue;
+            }
+
+            if (date.addDays(7) >= today)
+            {
+                richItemWidget->setIconItemAsNew();
+                favRichItemWidget->setIconItemAsNew();
+                specialItems.append(qMakePair(id, text));
+            }
+        }
+
         item->setSizeHint(richItemWidget->size());
+        item->setText(text);
         ui->listWidget->addItem(item);
         ui->listWidget->setItemWidget(item, richItemWidget);
 
         // create favorite list item
-        QListWidgetItem *favItem = new QListWidgetItem(ui->listWidget_2);
-        richitem *favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
         favRichItemWidget->setProperty("id", id);
         favItem->setSizeHint(favRichItemWidget->size());
+        favItem->setData(Qt::UserRole + 1, favorite);
         ui->listWidget_2->addItem(favItem);
         ui->listWidget_2->setItemWidget(favItem, favRichItemWidget);
         favItem->setHidden(!favorite);
-
         // connect signals
         connect(richItemWidget, &richitem::favoriteToggled,
                 [this, favItem, favRichItemWidget](bool favorite) {
@@ -372,6 +411,32 @@ void MainWindow::populateList()
         connect(favRichItemWidget, &richitem::favoriteToggled,
                 this, &MainWindow::onFavoriteToggled);
     }
+
+    ui->listWidget->sortItems(currentSortOrder);
+
+    // Now, sort the specialItems (id, text) array alphabetically by text.
+    std::sort(specialItems.begin(), specialItems.end(), [](const QPair<int, QString>& a, const QPair<int, QString>& b) {
+        return a.second.compare(b.second, Qt::CaseInsensitive) < 0;
+        });
+
+    for (int k = 0; k < specialItems.size(); ++k) {
+        int specialId = specialItems[k].first;
+        for (int i = 0; i < ui->listWidget->count(); ++i) {
+            QListWidgetItem* item = ui->listWidget->item(i);
+            richitem* widget = qobject_cast<richitem*>(ui->listWidget->itemWidget(item));
+            if (widget && widget->property("id").toInt() == specialId) {
+                if (i != k) {
+                    bool ok = ui->listWidget->model()->moveRows(QModelIndex(), i, 1, QModelIndex(), k);
+                    if (!ok)
+                        qDebug() << "Failed to move item with id:" << specialId;
+                }
+                break;
+            }
+        }
+    }
+
+    ui->listWidget->setIconSize(QSize(35, 35));
+    ui->listWidget_2->setIconSize(QSize(35, 35));
 }
 
 void MainWindow::updateExistingItem(QListWidgetItem* item,
@@ -474,35 +539,38 @@ bool MainWindow::compareItems(const QJsonObject &a, const QJsonObject &b) const
     }
 }
 
-void MainWindow::on_lineEdit_textChanged(const QString &arg1)
+void MainWindow::on_lineEdit_textChanged(const QString& arg1)
 {
-    QString searchText = arg1.toLower();
+     QString searchTerm = arg1.trimmed();
 
-    // pre-allocate visibility array
-    QVector<bool> visibility(ui->listWidget->count());
+     for (int i = 0; i < ui->listWidget->count(); ++i) {
+         QListWidgetItem* item = ui->listWidget->item(i);
 
-    // process all items
-    for (int i = 0; i < ui->listWidget->count(); ++i) {
-        QListWidgetItem *item = ui->listWidget->item(i);
-        richitem *widget = qobject_cast<richitem*>(ui->listWidget->itemWidget(item));
+         if (searchTerm.isEmpty()) {
+             item->setHidden(false);
+         }
+         else {
+             bool match = item->text().contains(searchTerm, Qt::CaseInsensitive);
+             item->setHidden(!match);
+         }
 
-        if (widget) {
-            QString itemText = widget->getLabelText().toLower();
-            bool matches = searchText.isEmpty() || itemText.contains(searchText);
-            bool isFavorite = widget->isFavorite();
+         if (QListWidgetItem* favItem = ui->listWidget_2->item(i)) {
+             bool isFavorite = favItem->data(Qt::UserRole + 1).toBool();
+             bool match = favItem->text().contains(searchTerm, Qt::CaseInsensitive);
 
-            // cache visibility result
-            visibility[i] = matches;
-
-            // update main list
-            item->setHidden(!matches);
-
-            // update favorite list
-            if (QListWidgetItem *favItem = ui->listWidget_2->item(i)) {
-                favItem->setHidden(!isFavorite || (!searchText.isEmpty() && !matches));
-            }
-        }
-    }
+             if (!isFavorite) {
+                 favItem->setHidden(true);
+             }
+             else {
+                 if (searchTerm.isEmpty()) {
+                     favItem->setHidden(false);
+                 }
+                 else {
+                     favItem->setHidden(!match);
+                 }
+             }
+         }
+     }
 }
 
 void MainWindow::clearSearch()
@@ -898,6 +966,10 @@ void MainWindow::addCustomEntry(const QJsonObject &entry)
     }
 
     modifiedEntry["Favorite"] = true;
+
+    if (modifiedEntry["ID"].toInt() == -1) {
+        modifiedEntry["ID"] = DialogAddItem().generateUniqueId(customJsonArray);
+    }
     int newEntryId = modifiedEntry["ID"].toInt();
 
     customJsonArray.append(modifiedEntry);
@@ -973,19 +1045,24 @@ void MainWindow::onFavoriteToggled(bool favorite)
 
     updateUserJsonArray(id, favorite);
 
-    // Update both list widgets
+    // Update the availableList item that matches the given ID
     for (int i = 0; i < ui->listWidget->count(); ++i) {
-        QListWidgetItem *item = ui->listWidget->item(i);
-        QListWidgetItem *favItem = ui->listWidget_2->item(i);
-        richitem *mainWidget = qobject_cast<richitem*>(ui->listWidget->itemWidget(item));
-        richitem *favWidget = qobject_cast<richitem*>(ui->listWidget_2->itemWidget(favItem));
+        QListWidgetItem* item = ui->listWidget->item(i);
+        richitem* widget = qobject_cast<richitem*>(ui->listWidget->itemWidget(item));
+        if (widget && widget->property("id").toInt() == id) {
+            widget->setFavorite(favorite);
+            break;
+        }
+    }
 
-        if (mainWidget && mainWidget->property("id").toInt() == id) {
-            mainWidget->setFavorite(favorite);
-            if (favWidget) {
-                favWidget->setFavorite(favorite);
-                favItem->setHidden(!favorite);
-            }
+    // Update the favoritesList item that matches the given ID
+    for (int i = 0; i < ui->listWidget_2->count(); ++i) {
+        QListWidgetItem* favItem = ui->listWidget_2->item(i);
+        richitem* favWidget = qobject_cast<richitem*>(ui->listWidget_2->itemWidget(favItem));
+        if (favWidget && favWidget->property("id").toInt() == id) {
+            favWidget->setFavorite(favorite);
+            // Hide or show the item depending on its favorite state
+            favItem->setHidden(!favorite);
             break;
         }
     }
@@ -1184,10 +1261,24 @@ void MainWindow::on_actionManageFav_triggered()
                 updateUserJsonArray(id, false);
             }
         }
+        userJsonArray = newFavorites;
 
         updateJsonArrays();
         populateList();
     }
+}
+
+void MainWindow::on_actionAjouter_triggered()
+{
+    // dialog for custom items
+    DialogAddItem* dialog = new DialogAddItem(this);
+    connect(dialog, &DialogAddItem::customEntryCreated, this, [this](const QJsonObject& newEntry) {
+        qDebug() << "Received new entry from dialog:" << newEntry;
+        addCustomEntry(newEntry);
+        }, Qt::QueuedConnection);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setFixedSize(dialog->size());
+    dialog->exec();
 }
 
 void MainWindow::on_pushButton_clicked()

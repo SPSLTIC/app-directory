@@ -44,6 +44,14 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
 
     this->setWindowTitle("Modifier le raccourcis");
 
+    onTypeChanged(entry.value("Type").toInt());
+
+    ui->lineEdit->setText(entry.value("Name").toString());
+    ui->lineEdit_2->setText(entry.value("Path").toString());
+    ui->lineEdit_3->setText(entry.value("Image").toString());
+
+    previewIcon(entry.value("ID").toInt());
+
     prepareInterface();
 
     QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok);
@@ -52,12 +60,6 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
     }
 
     ui->deleteButton->setStyleSheet("background-color: #C91100; color: white;");
-
-    onTypeChanged(entry.value("Type").toInt());
-
-    ui->lineEdit->setText(entry.value("Name").toString());
-    ui->lineEdit_2->setText(entry.value("Path").toString());
-    ui->lineEdit_3->setText(entry.value("Image").toString());
 
     ui->deleteButton->show();
 
@@ -99,6 +101,12 @@ void DialogAddItem::prepareInterface() {
         cancelButton->setText(tr("Annuler"));
     }
 
+    ui->label->setTextFormat(Qt::RichText);
+    ui->label->setText("*Nom de l'application <br> <i>Champ requis</i>");
+
+    ui->label_4->setTextFormat(Qt::RichText);
+    ui->label_4->setText("*Type d'application <br> <i>Champ requis</i>");
+
     ui->comboBox_type->addItem("Site internet");
     ui->comboBox_type->addItem("Autre");
     ui->lineEdit->setPlaceholderText("Par ex: Google");
@@ -126,12 +134,20 @@ void DialogAddItem::generateEntry()
 bool DialogAddItem::verifyEntry()
 {
     if (!ui->lineEdit->text().isEmpty() &&
-        !ui->lineEdit_2->text().isEmpty() &&
-        !ui->lineEdit_3->text().isEmpty())
+        !ui->lineEdit_2->text().isEmpty())
     {
-        int id = newEntry.contains("ID") ? newEntry.value("ID").toInt() : generateUniqueId();
+        int id = newEntry.contains("ID") ? newEntry.value("ID").toInt() : -1;
 
         bool favorite = newEntry.contains("Favorite") ? newEntry.value("Favorite").toBool() : true;
+
+        if (ui->lineEdit_3->text().isEmpty()) {
+            if (ui->comboBox_type->currentIndex() == 0) { //web
+                ui->lineEdit_3->setText(":/icons/icons/web.png");
+            }
+            else {
+                ui->lineEdit_3->setText(":/icons/icons/other.png");
+            }
+        }
 
         newEntry = QJsonObject({
             {"ID", id},
@@ -194,6 +210,8 @@ void DialogAddItem::on_pushButton_3_pressed()
             qDebug() << "MANUAL: Set image path to:" << fileName;
         }
     }
+
+    previewIcon(-1);
 }
 
 void DialogAddItem::onTypeChanged(int index)
@@ -217,24 +235,45 @@ void DialogAddItem::onTypeChanged(int index)
         ui->lineEdit_2->setEnabled(false);
         break;
     }
+
+    previewIcon(index);
+}
+
+void DialogAddItem::previewIcon(int id) {
+    qDebug() << "id" << id;
+    QPixmap pixmap;
+
+    if (ui->lineEdit_3->text().isEmpty()) {
+        if (id == 0) {
+            pixmap = QPixmap(":/icons/icons/web.png");
+        }
+        else if (id == 1) {
+            pixmap = QPixmap(":/icons/icons/other.png");
+        }
+        else {
+            pixmap = ui->label_2->pixmap();
+        }
+        
+    }
+    else {
+        pixmap = QPixmap(ui->lineEdit_3->text());
+    }
+
+
+    if (!pixmap.isNull()) {
+        qDebug() << "isNotNull";
+        pixmap = pixmap.scaled(45, 45, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        ui->label_2->setPixmap(pixmap);
+    }
+    else {
+        qDebug() << "isNull";
+    }
 }
 
 
-int DialogAddItem::generateUniqueId()
+int DialogAddItem::generateUniqueId(const QJsonArray& jsonArray)
 {
-    QString customFilePath = getCustomEntriesPath();
-    QFile userfilecustom(customFilePath);
-    QJsonArray customEntries;
-
-    if (userfilecustom.open(QIODevice::ReadOnly)) {
-        QJsonDocument doc = QJsonDocument::fromJson(userfilecustom.readAll());
-        userfilecustom.close();
-        customEntries = doc.array();
-        qDebug() << "Loaded" << customEntries.size() << "custom entries from" << customFilePath;
-    } else {
-        qDebug() << "No custom entries file found or couldn't open it:" << customFilePath;
-        qDebug() << "Error:" << userfilecustom.errorString();
-    }
+    QJsonArray customEntries = jsonArray;
 
     qDebug() << "Current custom entries:";
     for (const QJsonValue &value : customEntries) {
@@ -265,8 +304,7 @@ void DialogAddItem::checkFields()
 {
     // Check if all required fields are not empty (you can adjust conditions as needed)
     bool allFilled = !ui->lineEdit->text().trimmed().isEmpty() &&
-        !ui->lineEdit_2->text().trimmed().isEmpty() &&
-        !ui->lineEdit_3->text().trimmed().isEmpty();
+        !ui->lineEdit_2->text().trimmed().isEmpty();
 
     // Enable or disable the OK/Add button accordingly
     QPushButton* okButton = ui->buttonBox->button(QDialogButtonBox::Ok);

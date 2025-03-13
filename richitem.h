@@ -33,6 +33,8 @@ public:
     void updateContent(const QString& path, const QString& text,
                        const QString& imagePath, bool custom, bool favorite);
 
+    void setIconItemAsNew();
+
 signals:
     void favoriteToggled(bool favorite);
 
