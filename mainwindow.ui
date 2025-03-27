@@ -13,7 +13,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>579</height>
+    <height>600</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -31,7 +31,7 @@
   <property name="maximumSize">
    <size>
     <width>800</width>
-    <height>579</height>
+    <height>600</height>
    </size>
   </property>
   <property name="baseSize">
@@ -63,6 +63,9 @@
     </sizepolicy>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout_2">
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
@@ -162,6 +165,16 @@
       </widget>
      </widget>
     </item>
+    <item>
+     <widget class="QLabel" name="label">
+      <property name="text">
+       <string>1.0.0</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -193,7 +206,7 @@
     <property name="title">
      <string>Aide</string>
     </property>
-    <addaction name="actionManuel_utilisateur"/>
+    <addaction name="actionAide"/>
    </widget>
    <addaction name="menuFichier"/>
    <addaction name="menuFavoris"/>
@@ -238,7 +251,7 @@
     <string>Ajouter</string>
    </property>
   </action>
-  <action name="actionManuel_utilisateur">
+  <action name="actionAide">
    <property name="text">
     <string>Manuel utilisateur</string>
    </property>

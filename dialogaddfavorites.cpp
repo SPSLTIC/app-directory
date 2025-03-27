@@ -76,9 +76,13 @@ void DialogAddFavorites::populateAvailableList(const QJsonArray& jsonArray)
         QJsonObject obj = value.toObject();
         QString appName = obj.value("Name").toString();
         int appId = obj.value("ID").toInt();
-        QString imagePath = obj.value("Image").toString(); 
+        QString imagePath = obj.value("Image").toString();
         bool custom = obj.value("Custom").toBool();
         QString dateStr = obj.value("Date").toString();
+
+        if (!custom) {
+            imagePath = QString(Config::DEFAULT_IMAGES_PATH) + "/" + imagePath;
+        }
 
         if (!QFile::exists(imagePath)) {
             qDebug() << "L'image n'existe pas:" << imagePath;
@@ -138,9 +142,15 @@ void DialogAddFavorites::populateFavoriteList(const QJsonArray& jsonArray)
         QString appName = obj.value("Name").toString();
         int appId = obj.value("ID").toInt();
         QString imagePath = obj.value("Image").toString();
+        bool custom = obj.value("Custom").toBool();
 
         if (!value.isObject() || !isFavorite(m_mainWindow->userJsonArray, appId))
             continue;
+
+            if (!custom) {
+                imagePath = QString(Config::DEFAULT_IMAGES_PATH) + "/" + imagePath;
+            }
+
 
             if (!QFile::exists(imagePath)) {
                 qDebug() << "L'image n'existe pas:" << imagePath;

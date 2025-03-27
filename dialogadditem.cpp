@@ -42,7 +42,7 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
 {
     ui->setupUi(this);
 
-    this->setWindowTitle("Modifier le raccourcis");
+    this->setWindowTitle("Modifier le raccourci");
 
     onTypeChanged(entry.value("Type").toInt());
 
@@ -69,8 +69,8 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
     connect(ui->deleteButton, &QPushButton::clicked, this, [this]() {
         QMessageBox msgBox;
         msgBox.setIcon(QMessageBox::Question);
-        msgBox.setWindowTitle(tr("Supprimer le raccourcis"));
-        msgBox.setText(tr("Êtes-vous sûr de vouloir supprimer ce raccourcis ?"));
+        msgBox.setWindowTitle(tr("Supprimer le raccourci"));
+        msgBox.setText(tr("Êtes-vous sûr de vouloir supprimer ce raccourci ?"));
         msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
         msgBox.setButtonText(QMessageBox::Yes, tr("Oui"));
         msgBox.setButtonText(QMessageBox::No, tr("Non"));

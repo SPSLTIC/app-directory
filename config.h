@@ -14,10 +14,20 @@ namespace Config
     #else
         static constexpr const char* USER_DATA_PATH = "Z:/TEMP";
     #endif
+    #ifdef ENV_DEFAULT_PATH_SRC
+            static constexpr const char* DEFAULT_PATH_SRC = ENV_DEFAULT_PATH_SRC;
+    #else
+            static constexpr const char* DEFAULT_PATH_SRC = "Z:/copy";
+    #endif
     #ifdef ENV_DEFAULT_JSON_PATH
         static constexpr const char* DEFAULT_JSON_PATH = ENV_DEFAULT_JSON_PATH;
     #else
-        static constexpr const char* DEFAULT_JSON_PATH = "default.json";
+        static constexpr const char* DEFAULT_JSON_PATH = "C:/temps/App-Directory-Source";
+    #endif
+    #ifdef ENV_DEFAULT_IMAGES_PATH
+            static constexpr const char* DEFAULT_IMAGES_PATH = ENV_DEFAULT_IMAGES_PATH;
+    #else
+            static constexpr const char* DEFAULT_IMAGES_PATH = "C:/temps/App-Directory-Source";
     #endif
     #ifdef ENV_CUSTOM_DATA_PATH
         static constexpr const char* CUSTOM_DATA_PATH = ENV_CUSTOM_DATA_PATH;
@@ -25,7 +35,14 @@ namespace Config
         static constexpr const char* CUSTOM_DATA_PATH = "Z:/TEMP";
     #endif
 
+    #ifdef ENV_USER_GUIDE_PATH
+            static constexpr const char* USER_GUIDE_PATH = ENV_USER_GUIDE_PATH;
+    #else
+        static constexpr const char* USER_GUIDE_PATH = "C:/Users/local_user/Documents/Guide/index.html";
+    #endif
+
     static constexpr const char* CUSTOM_FILENAME = "custom.json";
+    static constexpr const char* DEFAULT_FILENAME = "default.json";
 
     #ifdef ENV_SPECIFIC_FONT
         #pragma message("ENV_SPECIFIC_FONT is defined: " ENV_SPECIFIC_FONT)

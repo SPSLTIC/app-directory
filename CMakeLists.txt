@@ -38,6 +38,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         resources/resources.qrc
         ${APP_ICON_RESOURCE_WINDOWS}
         dialogaddfavorites.h dialogaddfavorites.cpp dialogaddfavorites.ui
+        propos.h propos.cpp propos.ui
 )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET app-directory APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

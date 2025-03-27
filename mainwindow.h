@@ -68,6 +68,9 @@ private:
     QVector<SortCriteriaItem> sortCriteria; 
     SortRole currentSortRole;
     Qt::SortOrder currentSortOrder;
+    bool copyDirectoryWithRobocopy(const QString& sourceDir, const QString& destDir);
+    bool checkInternetConnection();
+
     void setupSortCriteria();
     QString getSortCriteriaString(SortRole role) const;
     bool compareItems(const QJsonObject &a, const QJsonObject &b) const;
@@ -119,6 +122,7 @@ private slots:
     void on_actionParam_tres_triggered();
     void on_actionManageFav_triggered();
     void on_actionAjouter_triggered();
+    void on_actionAide_triggered();
     void onFavoriteToggled(bool favorite);
     void updateFavoriteOrder(const QModelIndex &sourceIndex, int row);
 

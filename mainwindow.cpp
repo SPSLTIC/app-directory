@@ -3,6 +3,7 @@
 #include "richitem.h"
 #include "dialogadditem.h"
 #include "settings.h"
+#include "propos.h"
 #include "dialogaddfavorites.h"
 #include <QListWidget>
 #include <QPushButton>
@@ -17,6 +18,9 @@
 #include <QToolButton>
 #include <QSizeGrip>
 #include <QDate>
+#include <QProcess>
+#include <QEventLoop>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -27,6 +31,19 @@ MainWindow::MainWindow(QWidget *parent)
     QSettings settings("AppDirectory", "MainWindow");
     restoreGeometry(settings.value("MainWindowGeometry").toByteArray());
     restoreState(settings.value("MainWindowState").toByteArray());
+
+
+    QString sourceDir = Config::DEFAULT_PATH_SRC;
+    QString destDir = Config::DEFAULT_JSON_PATH;
+
+    if (copyDirectoryWithRobocopy(sourceDir, destDir)) {
+        qDebug() << "Copie effectuée avec succès.";
+    }
+    else {
+        qDebug() << "La copie a échoué ou n'a pas été nécessaire.";
+    }
+
+
     /*
      * the cornerWidget is set by taking an existing widget (the comboBox + the pushButton_3)
      * it needs to be a single widget because it can't add two, it also can't be in tabWidget first
@@ -37,7 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->listWidget_2->setAcceptDrops(true);
     ui->listWidget_2->setDropIndicatorShown(true);
     ui->listWidget_2->setDragDropMode(QAbstractItemView::InternalMove);
-
+        
     ui->listWidget->setCursor(Qt::PointingHandCursor);
     ui->listWidget_2->setCursor(Qt::PointingHandCursor);
     connect(ui->listWidget_2->model(), &QAbstractItemModel::rowsMoved,
@@ -49,11 +66,15 @@ MainWindow::MainWindow(QWidget *parent)
     
     setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
 
+    currentSortRole = SortRole::Favorite;
+    currentSortOrder = Qt::AscendingOrder;
+
     ui->comboBox->hide();
    
     if (!loadData()) {
       QMessageBox::warning(this, tr("Erreur"),
                              tr("Certaines données n'ont pas pu être chargées"));  
+      qApp->quit();
     } else {
         /*
          * if the data is loaded it means it has the default info for the favorites
@@ -67,10 +88,6 @@ MainWindow::MainWindow(QWidget *parent)
         else {
             ui->tabWidget->setCurrentIndex(0);
             onTabChanged(0);
-        }
-
-        if (ui->comboBox) {
-            ui->comboBox->setCurrentText(getSortCriteriaString(userJsonArray.isEmpty() ? SortRole::Alphabetical : SortRole::Favorite));
         }
     }
 
@@ -93,6 +110,65 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->tabWidget, &QTabWidget::currentChanged,
         this, &MainWindow::onTabChanged);
+}
+
+bool MainWindow::checkInternetConnection()
+{
+    QMessageBox msgBox;
+    msgBox.setWindowTitle("Problème de connexion au réseau de la Ville");
+    msgBox.setText("Assurez-vous d'être connecté au réseau de la Ville avant de réessayer.");
+    msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::No);
+    msgBox.setDefaultButton(QMessageBox::Ok);
+
+    msgBox.show();
+    QApplication::processEvents();
+
+    QPushButton* retryButton = qobject_cast<QPushButton*>(msgBox.button(QMessageBox::Ok));
+    if (retryButton)
+        retryButton->setText("Réessayer");
+
+    QPushButton* quitButton = qobject_cast<QPushButton*>(msgBox.button(QMessageBox::No));
+    if (quitButton)
+        quitButton->setText("Quitter");
+
+    int ret = msgBox.exec();
+    return (ret == QMessageBox::Ok);
+}
+
+
+
+bool MainWindow::copyDirectoryWithRobocopy(const QString& sourceDir, const QString& destDir)
+{
+    QDir src(sourceDir);
+
+    QDir dirUser(Config::CUSTOM_DATA_PATH);
+
+    while (!dirUser.exists()) {
+        if (!checkInternetConnection()) {
+            std::exit(0);
+        }
+    }
+
+    QString program = "robocopy";
+    QStringList arguments;
+    arguments << sourceDir << destDir << "/MIR" << "/XO";
+
+    QProcess process;
+    // Start robocopy
+    process.start(program, arguments);
+
+    // wait the process 
+    if (!process.waitForFinished(-1)) {
+        qDebug() << "Robocopy did not finish within the allotted time.";
+        return false;
+    }
+
+    QString stdOutput = process.readAllStandardOutput();
+    QString stdError = process.readAllStandardError();
+
+    int exitCode = process.exitCode();
+
+    return (exitCode < 8);
 }
 
 void MainWindow::onTabChanged(int index)
@@ -181,7 +257,8 @@ bool MainWindow::loadData()
 
     QSet<int> favoriteIds;
 
-    QString defaultPathFix = QCoreApplication::applicationDirPath() + "/" + Config::DEFAULT_JSON_PATH;
+    QString defaultPathFix = QString(Config::DEFAULT_JSON_PATH) + "/" + Config::DEFAULT_FILENAME;
+
     QFile defaultFile(defaultPathFix);
     if(!defaultFile.open(QIODevice::ReadOnly)) {
         QMessageBox::critical(this, tr("Erreur"),
@@ -331,6 +408,7 @@ void MainWindow::populateList()
         sortedList.append(value.toObject());
     }
 
+
     // sort based on current criteria
     std::sort(sortedList.begin(), sortedList.end(),
               [this](const QJsonObject &a, const QJsonObject &b) {
@@ -347,8 +425,12 @@ void MainWindow::populateList()
         bool favorite = obj["Favorite"].toBool();
         bool custom = obj["Custom"].toBool();
         QString dateStr = obj["Date"].toString();
+        if (!custom) {
+            imagepath = QString(Config::DEFAULT_IMAGES_PATH) + "/" + imagepath;
+        }
 
         if (!QFile::exists(imagepath)) {
+
             qDebug() << "L'image n'existe pas:" << imagepath;
 
             imagepath = ":/icons/icons/no_image.png";
@@ -399,11 +481,13 @@ void MainWindow::populateList()
                 [this, favItem, favRichItemWidget](bool favorite) {
                     favItem->setHidden(!favorite);
                     favRichItemWidget->setFavorite(favorite);
+                    favItem->setData(Qt::UserRole + 1, favorite);
                 });
 
         connect(favRichItemWidget, &richitem::favoriteToggled,
-                [this, item, richItemWidget](bool favorite) {
+                [this, item, richItemWidget, favItem](bool favorite) {
                     richItemWidget->setFavorite(favorite);
+                    favItem->setData(Qt::UserRole + 1, favorite);
                 });
 
         connect(richItemWidget, &richitem::favoriteToggled,
@@ -1238,7 +1322,7 @@ void MainWindow::on_actionParam_tres_triggered()
     Settings *settings = new Settings(this);
     settings->setAttribute(Qt::WA_DeleteOnClose);
     settings->setFixedSize(settings->size());
-    settings->show();
+    settings->exec();
 }
 
 void MainWindow::on_actionManageFav_triggered()
@@ -1266,6 +1350,11 @@ void MainWindow::on_actionManageFav_triggered()
         updateJsonArrays();
         populateList();
     }
+}
+
+void MainWindow::on_actionAide_triggered()
+{
+    bool started = QProcess::startDetached("cmd.exe", { "/c", "start", "", "chrome", Config::USER_GUIDE_PATH});
 }
 
 void MainWindow::on_actionAjouter_triggered()
@@ -1296,12 +1385,10 @@ void MainWindow::on_pushButton_clicked()
 
 void MainWindow::on_actionApropos_triggered()
 {
-    // show the app's infos and the support to call or contact
-    QMessageBox::information(this,
-                             "A propos",
-                             tr("Ce programme est écrit en C++ et utilise les bibliothèques QT GPLv3.\n"
-                                "Le programme est sous licence GPLv3 de manière à suivre la licence QT.\n"
-                                "Pour toute question relative au code merci de vous adresser à votre service informatique."));
+    Propos* propos = new Propos(this);
+    propos->setAttribute(Qt::WA_DeleteOnClose);
+    propos->setFixedSize(propos->size());
+    propos->exec();
 }
 
 void MainWindow::updateFavoriteOrder(const QModelIndex &sourceIndex, int row)
