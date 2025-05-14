@@ -22,6 +22,7 @@ public:
         const QString &imagePath,
         bool custom,
         bool favorite,
+        int type,
         bool showFavoriteButton = true,
         QWidget *parent = nullptr);
     ~richitem();
@@ -49,6 +50,8 @@ private:
     QString path;
     int id;
     void handleLink(const QString& link);
+
+    int typeNum;
 
 private slots:
     void toggleFavorite();

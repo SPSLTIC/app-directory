@@ -21,6 +21,9 @@
 #include <QProcess>
 #include <QEventLoop>
 #include <QTimer>
+#include <QSystemTrayIcon>
+#include <QMenu>
+#include <QAction>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -28,10 +31,21 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    QSettings bootSettings("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+        QSettings::NativeFormat);
+
+    QSettings config("HKEY_CURRENT_USER\\Software\\AppDirectory", QSettings::NativeFormat);
+
     QSettings settings("AppDirectory", "MainWindow");
     restoreGeometry(settings.value("MainWindowGeometry").toByteArray());
     restoreState(settings.value("MainWindowState").toByteArray());
 
+    addAppTrayIcon();
+    if (!config.contains("AppDirectory") && !bootSettings.contains("AppDirectory")) {
+
+        // Notification de lancement
+        showTrayNotification("Lancement de l’application, veuillez patienter...");
+    }
 
     QString sourceDir = Config::DEFAULT_PATH_SRC;
     QString destDir = Config::DEFAULT_JSON_PATH;
@@ -42,7 +56,6 @@ MainWindow::MainWindow(QWidget *parent)
     else {
         qDebug() << "La copie a échoué ou n'a pas été nécessaire.";
     }
-
 
     /*
      * the cornerWidget is set by taking an existing widget (the comboBox + the pushButton_3)
@@ -91,25 +104,58 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
-    QSettings bootSettings("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-        QSettings::NativeFormat);
-
-    QSettings config("HKEY_CURRENT_USER\\Software\\AppDirectory", QSettings::NativeFormat);
+    populateList();
 
     // Check if it's the first run
     if (!config.contains("AppDirectory") && !bootSettings.contains("AppDirectory")) {
        QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
        bootSettings.setValue("AppDirectory", appPath);
+       showTrayNotification("L'application est utilisable !");
     }
 
-    
-    populateList();
 
     connect(ui->pushButton_3, &QPushButton::clicked,
             this, &MainWindow::onSortOrderChanged);
 
     connect(ui->tabWidget, &QTabWidget::currentChanged,
         this, &MainWindow::onTabChanged);
+}
+
+void MainWindow::addAppTrayIcon() {
+    trayIcon = new QSystemTrayIcon(this);
+    trayIcon->setIcon(QIcon(":/icons/icons/icon.ico"));
+    trayIcon->setToolTip("App-Directory");
+
+    // Menu contextuel
+    QMenu* trayMenu = new QMenu(this);
+    QAction* actionQuit = new QAction("Quitter", this);
+    connect(actionQuit, &QAction::triggered, qApp, &QApplication::quit);
+    trayMenu->addAction(actionQuit);
+    trayIcon->setContextMenu(trayMenu);
+
+    // Restauration de la fenêtre
+    connect(trayIcon, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger) {
+            if (this->isMinimized() || !this->isVisible()) {
+                this->showNormal();
+            }
+            this->raise();
+            this->activateWindow();
+        }
+        });
+
+    trayIcon->show();
+}
+
+void MainWindow::showTrayNotification(const QString& message) {
+    if (trayIcon && trayIcon->isVisible()) {
+        trayIcon->showMessage(
+            "App-Directory - Premier lancement",
+            message,
+            trayIcon->icon(),
+            5000
+        );
+    }
 }
 
 bool MainWindow::checkInternetConnection()
@@ -141,7 +187,7 @@ bool MainWindow::copyDirectoryWithRobocopy(const QString& sourceDir, const QStri
 {
     QDir src(sourceDir);
 
-    QDir dirUser(Config::CUSTOM_DATA_PATH);
+    QDir dirUser("Z:/");
 
     while (!dirUser.exists()) {
         if (!checkInternetConnection()) {
@@ -377,6 +423,21 @@ void MainWindow::onSortOrderChanged()
     populateList();
 }
 
+int MainWindow::getTypeNum(QString type) {
+
+
+    if (type.toLower() == "web") {
+        return 0;
+    }
+    else if (type.toLower() == "autre") {
+        return 1;
+    }
+    else {
+        qDebug() << "type" << type;
+        return 2;
+    }
+}
+
 
 void MainWindow::populateList()
 {
@@ -425,6 +486,13 @@ void MainWindow::populateList()
         bool favorite = obj["Favorite"].toBool();
         bool custom = obj["Custom"].toBool();
         QString dateStr = obj["Date"].toString();
+        QString type = obj["Type"].toString();
+        int typeNum = getTypeNum(type);
+        if (type.isEmpty()) {
+            int typeId = obj["Type"].toInt();
+            typeNum = typeId;
+        }
+
         if (!custom) {
             imagepath = QString(Config::DEFAULT_IMAGES_PATH) + "/" + imagepath;
         }
@@ -440,10 +508,10 @@ void MainWindow::populateList()
 
         // create main list item
         QListWidgetItem *item = new QListWidgetItem(icon, text);
-        richitem *richItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
+        richitem *richItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite, typeNum);
 
         QListWidgetItem* favItem = new QListWidgetItem(icon, text);
-        richitem* favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
+        richitem* favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite, typeNum);
 
         richItemWidget->setProperty("id", id);
 
@@ -461,6 +529,8 @@ void MainWindow::populateList()
                 richItemWidget->setIconItemAsNew();
                 favRichItemWidget->setIconItemAsNew();
                 specialItems.append(qMakePair(id, text));
+
+                qDebug() << "Date + 7:" << date.addDays(7) << "Date now:" << today << "boolean:" << (date.addDays(7) >= today);
             }
         }
 
@@ -545,6 +615,8 @@ void MainWindow::updateExistingItem(QListWidgetItem* item,
     }
 }
 
+
+
 void MainWindow::createNewItem(const QJsonObject& obj)
 {
     QString path = obj["Path"].toString();
@@ -554,9 +626,13 @@ void MainWindow::createNewItem(const QJsonObject& obj)
     int id = obj["ID"].toInt();
     bool custom = obj["Custom"].toBool();
 
+    QString type = obj["Type"].toString();
+
+    int typeNum = getTypeNum(type);
+
     // create main list item
     QListWidgetItem *item = new QListWidgetItem(ui->listWidget);
-    richitem *richItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
+    richitem *richItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite, typeNum);
     richItemWidget->setProperty("id", id);
     item->setSizeHint(richItemWidget->sizeHint());
     ui->listWidget->addItem(item);
@@ -564,7 +640,7 @@ void MainWindow::createNewItem(const QJsonObject& obj)
     
     // create favorite list item
     QListWidgetItem *favItem = new QListWidgetItem(ui->listWidget_2);
-    richitem *favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite);
+    richitem *favRichItemWidget = new richitem(this, id, path, text, imagepath, custom, favorite, typeNum);
     favRichItemWidget->setProperty("id", id);
     favItem->setSizeHint(favRichItemWidget->sizeHint());
     ui->listWidget_2->addItem(favItem);
@@ -583,7 +659,7 @@ void MainWindow::createNewItem(const QJsonObject& obj)
                 richItemWidget->setFavorite(favorite);
                 if (!favorite) {
                     item->setHidden(true);
-                }
+                 }
             });
 
     connect(richItemWidget, &richitem::favoriteToggled,

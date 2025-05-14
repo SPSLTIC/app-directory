@@ -1,5 +1,6 @@
 #include "dialogadditem.h"
 #include "ui_dialogadditem.h"
+#include "mainwindow.h"
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QJsonArray>
@@ -43,8 +44,16 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
     ui->setupUi(this);
 
     this->setWindowTitle("Modifier le raccourci");
+    //TODO
 
-    onTypeChanged(entry.value("Type").toInt());
+    int typeNum;
+    if (entry.value("Type").toString().isEmpty()) {
+        typeNum = entry.value("Type").toInt();
+    } else {
+        typeNum = MainWindow().getTypeNum(entry.value("Type").toString());
+    }
+
+    onTypeChanged(typeNum);
 
     ui->lineEdit->setText(entry.value("Name").toString());
     ui->lineEdit_2->setText(entry.value("Path").toString());
@@ -62,8 +71,8 @@ DialogAddItem::DialogAddItem(const QJsonObject& entry, QWidget* parent)
     ui->deleteButton->setStyleSheet("background-color: #C91100; color: white;");
 
     ui->deleteButton->show();
-
-    ui->comboBox_type->setCurrentIndex(entry.value("Type").toInt());
+    //TODO
+    ui->comboBox_type->setCurrentIndex(typeNum);
   
 
     connect(ui->deleteButton, &QPushButton::clicked, this, [this]() {
@@ -149,6 +158,16 @@ bool DialogAddItem::verifyEntry()
             }
         }
 
+
+        QString typeName;
+
+        if (ui->comboBox_type->currentIndex() == 0) {
+            typeName = "Web";
+        }
+        else if (ui->comboBox_type->currentIndex() == 1) {
+            typeName = "Autre";
+        }
+
         newEntry = QJsonObject({
             {"ID", id},
             {"Name", ui->lineEdit->text()},
@@ -156,7 +175,7 @@ bool DialogAddItem::verifyEntry()
             {"Image", ui->lineEdit_3->text()},
             {"Favorite", favorite},
             {"Custom", true},
-            {"Type", ui->comboBox_type->currentIndex()}
+            {"Type", typeName}
             });
 
         return true;

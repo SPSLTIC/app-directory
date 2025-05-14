@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QListWidgetItem>
 #include "config.h"
+#include <QSystemTrayIcon>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -34,6 +35,9 @@ public:
     void addCustomEntry(const QJsonObject& entry);
     void updateCustomEntry(const QJsonObject& updatedEntry);
     void onCustomEntryDeleteRequested(int id);
+
+
+    int getTypeNum(QString type);
 
 private:
     Ui::MainWindow *ui;
@@ -68,6 +72,9 @@ private:
     QVector<SortCriteriaItem> sortCriteria; 
     SortRole currentSortRole;
     Qt::SortOrder currentSortOrder;
+
+    QSystemTrayIcon* trayIcon = nullptr;
+
     bool copyDirectoryWithRobocopy(const QString& sourceDir, const QString& destDir);
     bool checkInternetConnection();
 
@@ -75,6 +82,9 @@ private:
     QString getSortCriteriaString(SortRole role) const;
     bool compareItems(const QJsonObject &a, const QJsonObject &b) const;
     void populateList();
+
+    void addAppTrayIcon();
+    void showTrayNotification(const QString& message);
 
     QString getLatestBackupPath() const;
     void updateJsonArrays();

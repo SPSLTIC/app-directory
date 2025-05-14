@@ -18,6 +18,7 @@ richitem::richitem(
 	const QString& imagepath,
 	bool custom,
 	bool favorite,
+	int type,
 	bool showFavoriteButton,
 	QWidget* parent) :
 	QWidget(parent),
@@ -32,6 +33,8 @@ richitem::richitem(
 	ui->setupUi(this);
 
 	setFixedHeight(50);
+
+	typeNum = type;
 
 	updateContent(path, text, imagepath, custom, favorite);
 
@@ -128,7 +131,17 @@ void richitem::handleLink(const QString& link)
 {
 	qDebug() << "handleLink called with link:" << link;
 	// Ouvrir le chemin via QProcess (ou QDesktopServices si souhaité)
-	QProcess::startDetached("cmd.exe", { "/c", "start", "", link });
+	QApplication::setOverrideCursor(Qt::WaitCursor);
+
+	if (typeNum == 0) { //Web
+		QProcess::startDetached("cmd.exe", { "/c", "start", "", link });
+	}
+	else if (typeNum == 1) {
+		QDesktopServices::openUrl(QUrl::fromLocalFile(link));
+	}
+
+	QApplication::restoreOverrideCursor();
+
 }
 
 void richitem::mouseDoubleClickEvent(QMouseEvent* event)

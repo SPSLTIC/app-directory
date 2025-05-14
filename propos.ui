@@ -50,7 +50,7 @@
          <string>Ce programme est écrit en C++ et utilise les bibliothèques QT GPLv3.
 Le programme est sous licence GPLv3 de manière à suivre la licence QT.
 Pour toute question relative au code merci de vous adresser à votre service informatique.
-Version 1.0.0</string>
+Version 1.0.1</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>
