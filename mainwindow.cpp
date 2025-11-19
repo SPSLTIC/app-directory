@@ -297,7 +297,7 @@ bool MainWindow::loadData()
 {
     if(!initDirs()) {
         QMessageBox::critical(this, tr("Error"),
-                              tr("N'a pas pu charger les dossiers"));
+                              tr("N'a pas pu charger les dossiers \n Vérifiez que les disques réseau Z et R sont bien connectés (pas de petite croix rouge)."));
         return false;
     }
 
